@@ -1,0 +1,461 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тест по физике</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .container {
+    background: #fff;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    align-self: center;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; color: #1a1a2e; }
+  .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+  .progress-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: bold;
+    color: #888;
+    margin-bottom: 12px;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+  }
+  .timer { color: #dc3545; }
+  .question {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    color: #1a1a2e;
+  }
+  .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .option {
+    padding: 14px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1.4;
+    transition: all 0.15s;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .option:hover { border-color: #4a90d9; background: #f5f9ff; }
+  .option.selected { border-color: #4a90d9; background: #e8f2ff; }
+  .option input { margin-top: 2px; accent-color: #4a90d9; }
+  .btn {
+    width: 100%;
+    padding: 14px;
+    background: #4a90d9;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: #3a7bc8; }
+  .btn:disabled { background: #ccc; cursor: not-allowed; }
+  .result { text-align: center; padding: 20px 0; }
+  .result h2 { font-size: 28px; margin: 0 0 8px; }
+  .result p { color: #666; margin: 0 0 20px; }
+  .summary {
+    text-align: left;
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .summary .ok { color: #28a745; font-weight: 600; }
+  .summary .fail { color: #dc3545; font-weight: 600; }
+  .hidden { display: none; }
+  input[type="text"] {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 16px;
+    margin-bottom: 16px;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus { outline: none; border-color: #4a90d9; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ЭКРАН 1: Ввод фамилии -->
+  <div id="screen-name">
+    <h1>Тест по физике</h1>
+    <p class="subtitle">5 случайных вопросов. Введите фамилию, чтобы начать.</p>
+    <input type="text" id="lastname" placeholder="Ваша фамилия" maxlength="50">
+    <button class="btn" id="start-btn">Начать тест</button>
+  </div>
+
+  <!-- ЭКРАН 2: Вопросы -->
+  <div id="screen-quiz" class="hidden">
+    <div class="progress-row">
+      <span id="progress"></span>
+      <span class="timer" id="timer-display">⏳ 20 сек.</span>
+    </div>
+    <div class="question" id="question-text"></div>
+    <div class="options" id="options"></div>
+    <button class="btn" id="answer-btn" disabled>Ответить</button>
+  </div>
+
+  <!-- ЭКРАН 3: Результат -->
+  <div id="screen-result" class="hidden">
+    <div class="result">
+      <h2 id="result-title"></h2>
+      <p id="result-score"></p>
+    </div>
+    <div class="summary" id="summary"></div>
+    <button class="btn" id="finish-btn">Завершить тестирование</button>
+  </div>
+
+</div>
+
+<script>
+// ==========================================
+// НАСТРОЙКА ВРЕМЕНИ НА ВЕСЬ ТЕСТ (в секундах)
+// ==========================================
+const TOTAL_TIME_LIMIT = 30; 
+
+// Ваша ссылка на Google Apps Script
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzhuClMqT755pQWvOs-keEV9NPrxP-xmxceaD3vClo9GFn0mUS_FOQANxRXXy8iN8o/exec';
+
+// === БАНК ВОПРОСОВ ===
+const ALL_QUESTIONS = [
+  {
+    q: 'Какая из перечисленных величин является векторной?',
+    options: ['масса', 'время', 'путь', 'перемещение'],
+    correct: 3,
+    solution: 'Векторная величина имеет направление. Перемещение — вектор из начальной точки в конечную. Масса, время и путь направления не имеют.'
+  },
+  {
+    q: 'Движение тела, при котором его скорость изменяется одинаково за любые равные промежутки времени, называется…',
+    options: ['равномерным', 'равноускоренным', 'свободным падением', 'криволинейным'],
+    correct: 1,
+    solution: 'Равноускоренное движение — это движение с постоянным ускорением, то есть скорость меняется одинаково за равные промежутки времени.'
+  },
+  {
+    q: 'Дайте определение понятию «инерция».',
+    options: [
+      'Явление сохранения скорости тела при отсутствии действия на него других тел',
+      'Свойство тела сопротивляться изменению скорости',
+      'Движение тела по инерции после финиша',
+      'Взаимодействие молекул'
+    ],
+    correct: 0,
+    solution: 'Инерция — это явление сохранения скорости тела при отсутствии внешних сил. Инертность — это свойство (мера — масса), их не нужно путать.'
+  },
+  {
+    q: 'Почему бегун после финиша не может сразу остановиться?',
+    options: [
+      'На него действует сила тяжести',
+      'Он продолжает движение по инерции',
+      'На него действует сила реакции опоры',
+      'Он прикладывает мышечное усилие'
+    ],
+    correct: 1,
+    solution: 'После финиша бегун перестаёт отталкиваться, но тело «помнит» движение и продолжает двигаться по инерции. Чтобы остановиться, нужна сила (трение, торможение).'
+  },
+  {
+    q: 'Основное утверждение молекулярно-кинетической теории заключается в том, что…',
+    options: [
+      'все тела состоят из молекул, все молекулы движутся, все молекулы взаимодействуют',
+      'все тела состоят из клеток, клетки взаимодействуют друг с другом',
+      'в основе всего живого атом, атомы носители информации',
+      'все тела состоят из электронов'
+    ],
+    correct: 0,
+    solution: 'МКТ: 1) вещество состоит из частиц; 2) частицы непрерывно движутся; 3) частицы взаимодействуют. Вариант про клетки — это биология.'
+  },
+  {
+    q: 'Абсолютная температура газа пропорциональна…',
+    options: [
+      'средней потенциальной энергии молекул',
+      'средней кинетической энергии молекул',
+      'массе молекул',
+      'плотности газа'
+    ],
+    correct: 1,
+    solution: 'Температура — мера средней кинетической энергии теплового движения молекул: E_k = (3/2)kT. Чем быстрее движутся молекулы, тем выше температура.'
+  },
+  {
+    q: 'Процесс передачи энергии от одного тела к другому без совершения работы называется…',
+    options: ['теплопередачей', 'теплообменом', 'теплопроводностью', 'количеством теплоты'],
+    correct: 0,
+    solution: 'Теплопередача — общее название процесса передачи энергии из-за разности температур без совершения работы. Теплопроводность — лишь один из видов теплопередачи.'
+  },
+  {
+    q: 'Два одинаковых металлических шарика с зарядами +2q и −4q привели в соприкосновение и развели. Каков стал заряд каждого шарика?',
+    options: ['+3q', '−1q', '−2q', '+1q'],
+    correct: 1,
+    solution: 'Суммарный заряд: +2q + (−4q) = −2q. При соприкосновении одинаковых шариков заряд делится поровну: −2q / 2 = −1q на каждом.'
+  },
+  {
+    q: 'Сила тока в проводнике определяется…',
+    options: [
+      'энергией электрического поля',
+      'зарядом, проходящим через поперечное сечение проводника в единицу времени',
+      'работой электрического поля по перемещению заряда',
+      'напряжённостью электрического поля'
+    ],
+    correct: 1,
+    solution: 'По определению I = q/t: сила тока — это заряд, проходящий через сечение за единицу времени. Работа и напряжённость — другие характеристики.'
+  },
+  {
+    q: 'Единицей измерения электрического сопротивления является…',
+    options: ['Вольт (В)', 'Ампер (А)', 'Ом (Ом)', 'Кулон (Кл)'],
+    correct: 2,
+    solution: 'Сопротивление измеряется в Омах. Вольт — напряжение, Ампер — сила тока, Кулон — заряд.'
+  },
+  {
+    q: 'Сопоставьте: Импульс тела — формула?',
+    options: ['m·g·h', 'm·v²/2', 'A/t', 'm·v'],
+    correct: 3,
+    solution: 'Импульс тела p = m·v (масса на скорость). m·g·h — потенциальная энергия, m·v²/2 — кинетическая, A/t — мощность.'
+  },
+  {
+    q: 'Сопоставьте: Сила трения — формула?',
+    options: ['G·(m₁m₂)/R²', 'k·(q₁q₂)/R²', 'μ·N', 'k·Δx'],
+    correct: 2,
+    solution: 'Сила трения F_тр = μ·N. G·(m₁m₂)/R² — тяготение, k·(q₁q₂)/R² — закон Кулона, k·Δx — закон Гука (упругость).'
+  },
+  {
+    q: 'Сопоставьте: Инерция — пример из жизни?',
+    options: [
+      'Футболист не может сразу остановиться',
+      'Распространение запаха дезодоранта в раздевалке',
+      'Циркуляция воздуха в спортивном зале при проветривании',
+      'Высыхание футболки, пропитанной потом'
+    ],
+    correct: 0,
+    solution: 'Инерция — сохранение движения. Футболист «проносит» мимо после остановки. Запах — диффузия, циркуляция воздуха — конвекция, высыхание — испарение.'
+  },
+  {
+    q: 'Сопоставьте: Сила тока — единица измерения?',
+    options: ['Вольт (В)', 'Ом (Ом)', 'Ампер (А)', 'Ватт (Вт)'],
+    correct: 2,
+    solution: 'Сила тока измеряется в Амперах (А). Вольт — напряжение, Ом — сопротивление, Ватт — мощность.'
+  },
+  {
+    q: 'Сопоставьте: И. Ньютон — открытие?',
+    options: [
+      'Закон всемирного тяготения',
+      'Закон взаимодействия электрических зарядов',
+      'Закон взаимодействия токов',
+      'Закон для участка электрической цепи'
+    ],
+    correct: 0,
+    solution: 'Ньютон — закон всемирного тяготения. Кулон — взаимодействие зарядов, Ампер — взаимодействие токов, Ом — закон участка цепи.'
+  },
+  {
+    q: 'Футболист бьёт ногой по неподвижному мячу. Мяч начинает двигаться. Какой из трёх законов Ньютона это объясняет?',
+    options: ['Первый закон', 'Второй закон', 'Третий закон', 'Ни один из законов'],
+    correct: 1,
+    solution: 'Второй закон Ньютона: ускорение прямо пропорционально приложенной силе и обратно пропорционально массе. Футболист прилагает силу — мяч получает ускорение и начинает двигаться.'
+  }
+];
+
+// === ЛОГИКА ТЕСТА ===
+let currentQuestions = [];
+let currentIndex = 0;
+let answers = [];
+let lastname = '';
+let timerInterval = null;
+let timeLeft = 0;
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const screenName = document.getElementById('screen-name');
+const screenQuiz = document.getElementById('screen-quiz');
+const screenResult = document.getElementById('screen-result');
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  const input = document.getElementById('lastname');
+  lastname = input.value.trim();
+  if (!lastname) {
+    alert('Пожалуйста, введите фамилию.');
+    return;
+  }
+  startQuiz();
+});
+
+function startQuiz() {
+  currentQuestions = shuffle(ALL_QUESTIONS).slice(0, 5);
+  currentIndex = 0;
+  answers = [];
+  
+  screenName.classList.add('hidden');
+  screenQuiz.classList.remove('hidden');
+  screenResult.classList.add('hidden');
+
+  // Запуск общего таймера на 20 секунд
+  timeLeft = TOTAL_TIME_LIMIT;
+  document.getElementById('timer-display').textContent = `⏳ ${timeLeft} сек.`;
+  
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timer-display').textContent = `⏳ ${timeLeft} сек.`;
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      finishQuiz(); // Время вышло — принудительно завершаем
+    }
+  }, 1000);
+
+  showQuestion();
+}
+
+function showQuestion() {
+  const q = currentQuestions[currentIndex];
+  document.getElementById('progress').textContent = `Вопрос ${currentIndex + 1} из 5`;
+  document.getElementById('question-text').textContent = q.q;
+
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = '';
+
+  q.options.forEach((opt, i) => {
+    const label = document.createElement('label');
+    label.className = 'option';
+    label.innerHTML = `
+      <input type="radio" name="q${currentIndex}" value="${i}">
+      <span>${opt}</span>
+    `;
+    label.addEventListener('click', () => {
+      document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+      label.classList.add('selected');
+      document.getElementById('answer-btn').disabled = false;
+    });
+    optionsDiv.appendChild(label);
+  });
+
+  document.getElementById('answer-btn').disabled = true;
+  document.getElementById('answer-btn').textContent = currentIndex === 4 ? 'Завершить тест' : 'Ответить';
+  document.getElementById('answer-btn').onclick = () => answerQuestion();
+}
+
+function answerQuestion() {
+  const selected = document.querySelector(`input[name="q${currentIndex}"]:checked`);
+  const q = currentQuestions[currentIndex];
+  
+  let chosen = -1;
+  if (selected) chosen = parseInt(selected.value);
+  
+  answers.push({
+    question: q.q,
+    chosenText: chosen !== -1 ? q.options[chosen] : 'Нет ответа (время вышло)',
+    correctText: q.options[q.correct],
+    isCorrect: (chosen === q.correct),
+    solution: q.solution
+  });
+
+  currentIndex++;
+
+  if (currentIndex < 5 && timeLeft > 0) {
+    showQuestion();
+  } else {
+    finishQuiz();
+  }
+}
+
+function finishQuiz() {
+  if (timerInterval) clearInterval(timerInterval);
+  screenQuiz.classList.add('hidden');
+  screenResult.classList.remove('hidden');
+
+  // Добавляем пропущенные вопросы, если время вышло
+  while (answers.length < 5) {
+    const q = currentQuestions[answers.length];
+    answers.push({
+      question: q.q,
+      chosenText: 'Нет ответа (время вышло)',
+      correctText: q.options[q.correct],
+      isCorrect: false,
+      solution: q.solution
+    });
+  }
+
+  const correctCount = answers.filter(a => a.isCorrect).length;
+  
+  document.getElementById('result-title').textContent = correctCount === 5 ? 'Отлично!' : 'Тест завершён';
+  document.getElementById('result-score').textContent = `Правильных ответов: ${correctCount} из 5`;
+
+  let summaryHtml = '<strong>Разбор ответов:</strong><br><br>';
+  answers.forEach((a, i) => {
+    summaryHtml += `<div style="margin-bottom:12px;">`;
+    summaryHtml += `<strong>${i + 1}. ${a.question}</strong><br>`;
+    summaryHtml += `Ваш ответ: <span class="${a.isCorrect ? 'ok' : 'fail'}">${a.chosenText}</span><br>`;
+    if (!a.isCorrect) {
+      summaryHtml += `Правильный: <span class="ok">${a.correctText}</span><br>`;
+    }
+    summaryHtml += `<span style="color:#666;font-size:13px;">${a.solution}</span>`;
+    summaryHtml += `</div>`;
+  });
+  document.getElementById('summary').innerHTML = summaryHtml;
+
+  sendToSheet(correctCount);
+}
+
+function sendToSheet(correctCount) {
+  const params = new URLSearchParams();
+  params.append('Фамилия', lastname);
+  params.append('Итог', `${correctCount}/5`);
+
+  answers.forEach((a, i) => {
+    params.append(`Вопрос${i + 1}`, a.question.substring(0, 80) + '…');
+    params.append(`Ответ${i + 1}`, a.chosenText);
+    params.append(`Верно${i + 1}`, a.isCorrect ? 'Да' : 'Нет');
+  });
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString()
+  }).catch(() => {});
+}
+
+// Кнопка "Завершить тестирование"
+document.getElementById('finish-btn').addEventListener('click', () => {
+  // Очищаем экран и показываем прощальное сообщение
+  document.querySelector('.container').innerHTML = `
+    <div style="text-align: center; padding: 40px 0;">
+      <h2 style="color: #28a745; margin-bottom: 10px;">Спасибо!</h2>
+      <p style="color: #666;">Результаты успешно отправлены.<br>Вы можете закрыть эту страницу.</p>
+    </div>
+  `;
+});
+</script>
+</body>
+</html>
