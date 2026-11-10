@@ -222,14 +222,8 @@ document.getElementById('start-btn').addEventListener('click', () => {
 });
 
 function startQuiz() {
-  const singleQuestions = ALL_QUESTIONS.filter(q => q.type === 'single');
-  const matchQuestions = ALL_QUESTIONS.filter(q => q.type === 'match');
-  
-  currentQuestions = [
-    ...shuffle(singleQuestions).slice(0, 3),
-    ...shuffle(matchQuestions).slice(0, 2)
-  ];
-  currentQuestions = shuffle(currentQuestions);
+  const shuffled = shuffle(ALL_QUESTIONS);
+currentQuestions = shuffled.slice(0, 5);
 
   currentIndex = 0;
   answers = [];
